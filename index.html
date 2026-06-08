@@ -399,7 +399,7 @@
           ultimoReconhecido = best;
           bloqueioDeEnvio = true; 
           
-          const ipESP = "192.168.100.81"; 
+          const ipESP = "192.168.100.83"; 
           
           fetch(`http://${ipESP}/reconhecido?nome=Pessoa_${best}`)
             .then(response => console.log("ESP32 Avisado!"))
