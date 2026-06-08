@@ -240,6 +240,8 @@
   let running=false, modelsReady=false, stream=null;
   let lastDescriptor=null;
   const refs={A:null,B:null};
+  let ultimoReconhecido = null;
+  let bloqueioDeEnvio = false;
 
   // build 128 cells
   const cells=[];
@@ -392,10 +394,25 @@
     if(best!=null && bestD<=t){
       verdict.className="verdict match";
       verdict.innerHTML=`Pessoa ${best}<small>distância ${bestD.toFixed(3)} ≤ limiar ${t.toFixed(2)}</small>`;
+      
+      if(ultimoReconhecido !== best && !bloqueioDeEnvio) {
+          ultimoReconhecido = best;
+          bloqueioDeEnvio = true; 
+          
+          const ipESP = "192.168.100.81"; 
+          
+          fetch(`http://${ipESP}/reconhecido?nome=Pessoa_${best}`)
+            .then(response => console.log("ESP32 Avisado!"))
+            .catch(err => console.error("Erro ao avisar ESP32", err));
+            
+          setTimeout(() => { bloqueioDeEnvio = false; }, 3000); 
+      }
+      
     }else{
       verdict.className="verdict none";
       verdict.innerHTML=`Desconhecido<small>distância ${bestD===Infinity?"—":bestD.toFixed(3)} &gt; limiar ${t.toFixed(2)}</small>`;
-    }
+      ultimoReconhecido = null; 
+    }  
   }
 
   thr.oninput=()=>{thrVal.textContent=parseFloat(thr.value).toFixed(2);updateDecision();};
