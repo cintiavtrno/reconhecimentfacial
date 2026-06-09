@@ -75,13 +75,35 @@
   const refs={A:null,B:null};
 
   async function start(){
-    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-    await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-    await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
-    const stream=await navigator.mediaDevices.getUserMedia({video:true});
-    video.srcObject=stream;
-    running=true;
-    loop();
+    try {
+      // 1. Esconde o botão e mostra a tela de "Carregando modelos..."
+      $("startCover").classList.add("hidden");
+      $("loadCover").classList.remove("hidden");
+
+      // 2. Carrega os modelos (isso pode levar alguns segundos)
+      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+
+      // 3. Pede permissão e liga a câmera
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+
+      // 4. Só inicia o loop e esconde o carregamento quando o vídeo estiver pronto
+      video.onloadedmetadata = () => {
+        $("loadCover").classList.add("hidden");
+        running = true;
+        loop();
+      };
+
+    } catch (err) {
+      console.error("Erro na câmera:", err);
+      alert("Não foi possível acessar a câmera.\nMotivo: " + err.message + "\n\nLembre-se: O arquivo deve rodar em 'localhost' ou 'https'.");
+      
+      // Volta para o botão inicial caso dê erro
+      $("startCover").classList.remove("hidden");
+      $("loadCover").classList.add("hidden");
+    }
   }
 
   async function loop(){
@@ -124,7 +146,8 @@
       verdict.textContent = bestNome;
       if(ultimoReconhecido !== bestNome) {
         ultimoReconhecido = bestNome;
-        fetch(`http://192.168.100.83/reconhecido?nome=${encodeURIComponent(bestNome)}`);
+        // Importante: certifique-se que este IP é acessível e não gera bloqueios de CORS.
+        fetch(`http://192.168.100.83/reconhecido?nome=${encodeURIComponent(bestNome)}`).catch(e => console.log("Erro no fetch: ", e));
       }
     } else {
       verdict.textContent = "Desconhecido";
