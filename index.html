@@ -109,14 +109,6 @@
   .block:last-child{border-bottom:none;}
   .block-t{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--red-deep);margin-bottom:10px;}
 
-  /* Inputs de Nomes */
-  .name-inputs{display:flex;gap:10px;margin-bottom:8px;}
-  .name-inputs input{
-    flex:1; padding:7px 8px; font-family:"IBM Plex Mono",monospace; font-size:11px;
-    border:1px solid var(--line); background:var(--paper); color:var(--ink);
-  }
-  .name-inputs input:focus{outline:none;border-color:var(--ink);}
-
   .refs{display:flex;gap:10px;}
   .ref-slot{flex:1;border:1px dashed var(--line);background:var(--paper);aspect-ratio:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;}
   .ref-slot canvas{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);}
@@ -196,11 +188,6 @@
 
       <div class="block">
         <div class="block-t">Referências guardadas</div>
-        
-        <div class="name-inputs">
-          <input type="text" id="inputNameA" placeholder="Nome Pessoa A" value="Pessoa A">
-          <input type="text" id="inputNameB" placeholder="Nome Pessoa B" value="Pessoa B">
-        </div>
 
         <div class="refs">
           <div class="ref-slot" id="slotA"><span class="lbl" id="lblA">Pessoa A</span><span class="empty">vazio</span></div>
@@ -248,16 +235,14 @@
   const distAEl=$("distA"), distBEl=$("distB");
   const thr=$("thr"), thrVal=$("thrVal"), verdict=$("verdict"), verdictSub=$("verdictSub");
   
-  // Elementos de Nomes adicionados
-  const inputNameA=$("inputNameA"), inputNameB=$("inputNameB");
-  const lblA=$("lblA"), lblB=$("lblB");
+  // Elementos das tags de nome
   const rowNameA=$("rowNameA"), rowNameB=$("rowNameB");
 
   const MODEL_URL="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model";
   let running=false, modelsReady=false, stream=null;
   let lastDescriptor=null;
   const refs={A:null,B:null};
-  const refNames={A:"Pessoa A", B:"Pessoa B"}; // Guarda os nomes personalizados
+  const refNames={A:"Pessoa A", B:"Pessoa B"}; // Guarda os nomes digitados
   let ultimoReconhecido = null;
   let bloqueioDeEnvio = false;
 
@@ -374,16 +359,24 @@
 
   function capture(which){
     if(!lastDescriptor) return;
+    
+    // NOVO: Abre a janelinha pedindo o nome
+    let nomeDigitado = prompt(`Digite o nome para a Pessoa ${which}:`, `Pessoa ${which}`);
+    
+    // Se a pessoa apertar "Cancelar" no pop-up, a gente interrompe e não salva
+    if (nomeDigitado === null) return; 
+    
+    // Se ela deixar em branco e der OK, a gente usa um nome padrão
+    if (nomeDigitado.trim() === "") nomeDigitado = `Pessoa ${which}`;
+
     refs[which]=new Float32Array(lastDescriptor);
+    refNames[which] = nomeDigitado; // Guarda o nome escolhido
     
-    // Pega o nome digitado na caixa de texto
-    refNames[which] = which === "A" ? (inputNameA.value || "Pessoa A") : (inputNameB.value || "Pessoa B");
+    snapshot(which==="A"?slotA:slotB, nomeDigitado);
     
-    snapshot(which==="A"?slotA:slotB, refNames[which]);
-    
-    // Atualiza os labels das distâncias
-    if(which==="A") rowNameA.textContent = refNames.A;
-    if(which==="B") rowNameB.textContent = refNames.B;
+    // Atualiza os labels das distâncias com o novo nome
+    if(which==="A") rowNameA.textContent = nomeDigitado;
+    if(which==="B") rowNameB.textContent = nomeDigitado;
     
     updateDecision();
   }
@@ -419,10 +412,12 @@
     if(!lastDescriptor){
       verdict.className="verdict none"; verdict.innerHTML='sem rosto<small>aproxime-se da câmera</small>'; return;
     }
+    
     // pick closest ref under threshold
     let best=null,bestD=Infinity;
     if(dA!=null && dA<bestD){best="A";bestD=dA;}
     if(dB!=null && dB<bestD){best="B";bestD=dB;}
+    
     if(best!=null && bestD<=t){
       verdict.className="verdict match";
       
@@ -437,9 +432,9 @@
           
           const ipESP = "192.168.100.83"; 
           
-          // Envia o NOME DIGITADO para o ESP via URL formatada
+          // Envia o NOME que foi digitado no pop-up para o ESP via URL
           fetch(`http://${ipESP}/reconhecido?nome=${encodeURIComponent(nomeIdentificado)}`)
-            .then(response => console.log("ESP32 Avisado! Nome:", nomeIdentificado))
+            .then(response => console.log("ESP32 Avisado! Nome enviado:", nomeIdentificado))
             .catch(err => console.error("Erro ao avisar ESP32", err));
             
           setTimeout(() => { bloqueioDeEnvio = false; }, 3000); 
